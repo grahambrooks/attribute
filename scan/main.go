@@ -64,7 +64,10 @@ func scanPath(p string, client *neo.NeoClient) {
 
 		if err == nil {
 			if fileInfo.IsDir() {
-				_ = processRepository(path, client)
+				err = processRepository(path, client)
+				if err != nil {
+					log.Printf("Error processing %s %v", path, err)
+				}
 			}
 			return filepath.SkipDir
 		}

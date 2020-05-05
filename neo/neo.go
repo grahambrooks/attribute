@@ -3,11 +3,9 @@ package neo
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -29,10 +27,6 @@ func (c *NeoClient) httpRequest(method string, url string, body io.Reader) (*htt
 
 	return c.Client.Do(req)
 
-}
-
-type TransactionResponse struct {
-	Commit string `json:"commit"`
 }
 
 func (c *NeoClient) BeginTransaction(_ string) (*TransactionalClient, error) {
@@ -75,55 +69,6 @@ func NewNeoClient(options ClientOptions) NeoClient {
 	}
 }
 
-type TransactionalClient struct {
-	*NeoClient
-	TransactionUrl       string
-	CommitTransactionUrl string
-	Requests             TransactionRequest
-}
-
-func (tc *TransactionalClient) Request(s ...Statement) {
-	tc.Requests.Statements = append(tc.Requests.Statements, s...)
-
-	if len(tc.Requests.Statements) > 100 {
-		tc.sendRequests()
-	}
-}
-
-func (tc *TransactionalClient) sendRequests() {
-	if len(tc.Requests.Statements) > 0 {
-		reader, err := tc.encode(&tc.Requests)
-		if err != nil {
-			log.Printf("Encoding failed %v", err)
-		}
-
-		response, err := tc.httpRequest(http.MethodPost, tc.TransactionUrl, reader)
-
-		if err != nil {
-			log.Printf("NewContributor failed %v", err)
-		}
-
-		if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
-			decoder := json.NewDecoder(response.Body)
-
-			var neo NeoResultResponse
-			decoder.Decode(&neo)
-
-			log.Printf("Decoded response %#v %d", neo, response.StatusCode)
-			if len(neo.Results) > 0 {
-				if len(neo.Results[0].Errors) > 0 {
-					if neo.Results[0].Errors[0].Code == "Neo.ClientError.Transaction.TransactionAccessedConcurrently" {
-						log.Printf("Transaction failed - waiting %d", response.StatusCode)
-						time.Sleep(500 * time.Millisecond)
-						return
-					}
-				}
-			}
-		}
-	}
-	tc.Requests = TransactionRequest{}
-}
-
 type NeoResultResponse struct {
 	Results []NeoResult `json:"results"`
 }
@@ -141,10 +86,6 @@ type Statement struct {
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
-type TransactionRequest struct {
-	Statements []Statement `json:"statements"`
-}
-
 func (c *NeoClient) Transaction(transaction func(client *TransactionalClient) error) error {
 	t, err := c.BeginTransaction("neo4j")
 	if err == nil {
@@ -160,61 +101,12 @@ type NewRepositoryRequest struct {
 	Origin string `json:"origin"`
 }
 
-func (tc *TransactionalClient) CommitTransaction() error {
-	tc.sendRequests()
-	time.Sleep(1000 * time.Millisecond)
-	response, err := tc.httpRequest(http.MethodPost, tc.CommitTransactionUrl, strings.NewReader(`{ "statements": [] }`))
-
-	_, _ = io.Copy(os.Stdout, response.Body)
-	return err
-}
-
-func (tc *TransactionalClient) NewRepository(request NewRepositoryRequest) {
-	r := TransactionRequest{}
-
-	statement := Statement{
-		Statement:  `MERGE (n:Repository { name: $name, origin: $origin }) RETURN n`,
-		Parameters: make(map[string]string),
-	}
-	statement.Parameters["name"] = request.Name
-	statement.Parameters["origin"] = request.Origin
-	r.Statements = append(r.Statements, statement)
-
-	tc.Request(statement)
-}
-
 type NewContributorRequest struct {
 	Origin  string
 	Name    string
 	Email   string
 	When    time.Time
 	Message string
-}
-
-func (tc *TransactionalClient) NewContributor(request NewContributorRequest) {
-	contributor := Statement{
-		Statement: fmt.Sprintf(`MERGE (n:Contributor {name: '%s', email: '%s'}) RETURN n`, request.Name, request.Email),
-	}
-
-	//	eachCommitQuery := `MATCH (a:Contributor),(b:Repository)
-	//WHERE a.email = $email AND b.name = $name
-	//CREATE (a)-[r:Contributes { name: a.name + '<->' + b.name, when: $when, message: $message }]->(b)
-	//RETURN type(r), r.name`
-	simpleContributorQuery := `MATCH (a:Contributor),(b:Repository)
-WHERE a.email = $email AND b.name = $name
-MERGE (a)-[r:Contributes { name: a.name + '<->' + b.name }]->(b)
-RETURN type(r), r.name`
-
-	statement := Statement{
-		Statement:  simpleContributorQuery,
-		Parameters: make(map[string]string),
-	}
-	statement.Parameters["email"] = request.Email
-	statement.Parameters["name"] = request.Origin
-	statement.Parameters["when"] = request.When.Format(time.RFC1123Z)
-	statement.Parameters["message"] = request.Message
-
-	tc.Request(contributor, statement)
 }
 
 func (c *NeoClient) decode(readCloser io.ReadCloser, transaction *TransactionResponse) error {

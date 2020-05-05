@@ -5,6 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "neo.go",
+        "transaction.go"
     ],
     deps = [
     	"@in_gopkg_src_d_go_git_v4//:go_default_library",
