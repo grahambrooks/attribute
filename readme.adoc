@@ -1,0 +1,50 @@
+= Attribute
+
+A command line tool that creates graph database data on the relationship between developers and source code repositories.
+
+== Setup
+
+If you have docker installed:
+
+    docker run --publish=7474:7474 --publish=7687:7687 --volume=$HOME/neo4j/data:/data neo4j
+
+Starts an instance of Neo4j using $HOME/neo4j/data for databases.
+
+Once running http://localhost:7474 will open the Neo4j console. There are various restrictions applied to the community edition. There is one database (neo4j) etc. Attribute assumes you are running the community edition and populates the default database.
+
+Next create a user for attribute to use. These settings can be overridden on the command line
+[source, cypher]
+....
+CREATE USER attribute
+SET PASSWORD 'attribute'
+....
+
+=== Building Attribute using Bazel
+
+With Bazel installed
+
+    cd attribute
+    bazel build //...
+
+The built binary for your OS is available in ./bazel-bin/scan/{os}/attribute
+
+You can then either copy the binary to a convenient location on your path or run from bazel-bin.  bazel can build and run the scanner directly:
+
+    bazel run //scan:attribute -- <arguments>
+
+Collecting data
+
+    attribute /your/path/to/projects
+
+Attribute recursively scans the supplied paths. For each Git repository found it creates a repository node and then scans the commit history of the repository adding committers from the last 3 months as Contributors nodes with connections to the repositories they have contributed to.
+
+    MATCH (n) RETURN n
+
+Displays the collected data.
+
+=== Cleaning the Database
+
+    MATCH (n)
+    DETACH DELETE n
+
+Deletes all nodes and relationships

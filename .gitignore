@@ -1,0 +1,5 @@
+.idea/
+bazel-testlogs
+bazel-out
+bazel-attribute
+bazel-bin
