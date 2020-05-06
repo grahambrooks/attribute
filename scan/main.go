@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/grahambrooks/attribute/neo"
+	"github.com/grahambrooks/attribute/scan/tag"
 	"github.com/spf13/cobra"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -16,12 +17,14 @@ var (
 	username string
 	password string
 	neoHost  string
+	tags     []string
 )
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&username, "user", "u", "attribute", "Neo4j username")
 	rootCmd.PersistentFlags().StringVarP(&password, "password", "p", "attribute", "Neo4j password")
 	rootCmd.PersistentFlags().StringVarP(&neoHost, "neo", "n", "http://localhost:7474", "Neo4j base URL")
+	rootCmd.PersistentFlags().StringArrayVarP(&tags, "tag", "t", []string{}, "Node tags in the format contributor:tag repository:tag")
 }
 
 var rootCmd = &cobra.Command{
@@ -40,6 +43,10 @@ Scans /dev for git repositories. When found reads the commit history for the las
 			Username: username,
 			Password: password,
 		})
+		_, err :=  tag.Parse(tags)
+		if err != nil {
+			fmt.Printf("Error: %v", err)
+		}
 		for _, p := range args {
 			scanPath(p, &client)
 		}

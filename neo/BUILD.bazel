@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
 go_library(
@@ -12,11 +12,5 @@ go_library(
     	"@in_gopkg_src_d_go_git_v4//plumbing/object:go_default_library",
     ],
     importpath = "github.com/grahambrooks/attribute/neo",
-    visibility = ["//visibility:public"],
-)
-
-go_binary(
-    name = "attribute",
-    embed = [":go_default_library"],
     visibility = ["//visibility:public"],
 )
