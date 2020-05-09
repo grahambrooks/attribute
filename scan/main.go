@@ -5,12 +5,7 @@ import (
 	"github.com/grahambrooks/attribute/neo"
 	"github.com/grahambrooks/attribute/scan/tag"
 	"github.com/spf13/cobra"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"log"
 	"os"
-	"path/filepath"
-	"time"
 )
 
 var (
@@ -43,12 +38,14 @@ Scans /dev for git repositories. When found reads the commit history for the las
 			Username: username,
 			Password: password,
 		})
-		_, err :=  tag.Parse(tags)
+		tags, err := tag.Parse(tags)
 		if err != nil {
 			fmt.Printf("Error: %v", err)
 		}
+		processor := NeoProcessor{neoClient: &client, Tags: tags}
+		scanner := Scanner{Processor: processor.process}
 		for _, p := range args {
-			scanPath(p, &client)
+			scanner.Scan(p)
 		}
 	},
 }
@@ -58,83 +55,4 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
-}
-
-func scanPath(p string, client *neo.NeoClient) {
-	_ = filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
-			return err
-		}
-		fileInfo, err := os.Stat(filepath.Join(path, ".git"))
-
-		if err == nil {
-			if fileInfo.IsDir() {
-				err = processRepository(path, client)
-				if err != nil {
-					log.Printf("Error processing %s %v", path, err)
-				}
-			}
-			return filepath.SkipDir
-		}
-		return nil
-	})
-}
-
-func processRepository(repositoryPath string, neoClient *neo.NeoClient) error {
-	today := time.Now()
-
-	threeMonthsAgo := today.AddDate(0, -6, 0)
-
-	r, err := git.PlainOpen(repositoryPath)
-	if err != nil {
-		return err
-	}
-
-	remote, err := r.Remote("origin")
-	if err != nil {
-		return err
-	}
-
-	return neoClient.Transaction(func(client *neo.TransactionalClient) error {
-		log.Printf("Scanning %s", repositoryPath)
-
-		client.NewRepository(neo.NewRepositoryRequest{
-			Name:   filepath.Base(repositoryPath),
-			Origin: remote.Config().URLs[0],
-		})
-
-		ref, err := r.Head()
-		if err != nil {
-			log.Printf("Error: %v\n", err)
-			return err
-		}
-
-		cIter, err := r.Log(&git.LogOptions{From: ref.Hash()})
-		if err != nil {
-			log.Printf("Error: %v\n", err)
-			return err
-		}
-
-		seen := make(map[string]bool)
-		err = cIter.ForEach(func(c *object.Commit) error {
-			_, exists := seen[c.Author.Email]
-			if !exists {
-				if c.Author.When.After(threeMonthsAgo) {
-					request := neo.NewContributorRequest{
-						Origin:  filepath.Base(repositoryPath),
-						Name:    c.Author.Name,
-						Email:   c.Author.Email,
-						When:    c.Author.When,
-						Message: c.Message,
-					}
-					client.NewContributor(request)
-					seen[c.Author.Email] = true
-				}
-			}
-			return nil
-		})
-		return nil
-	})
 }

@@ -3,8 +3,10 @@ package neo
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/grahambrooks/attribute/scan/tag"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -62,15 +64,31 @@ func (tc *TransactionalClient) CommitTransaction() error {
 	return nil
 }
 
+func makeTagParams(tags []tag.Tag) string {
+	var b strings.Builder
+
+	for _, t := range tags {
+		_, _ = fmt.Fprintf(&b, ", %s: $%s", t.Key, t.Key)
+	}
+	return b.String()
+}
+
+func makeStatement(format string, tags []tag.Tag) string {
+	return fmt.Sprintf(format, makeTagParams(tags))
+}
+
 func (tc *TransactionalClient) NewRepository(request NewRepositoryRequest) {
 	r := TransactionRequest{}
 
 	statement := Statement{
-		Statement:  `MERGE (n:Repository { name: $name, origin: $origin }) RETURN n`,
+		Statement:  makeStatement(`MERGE (n:Repository { name: $name, origin: $origin%s }) RETURN n`, request.Tags),
 		Parameters: make(map[string]string),
 	}
 	statement.Parameters["name"] = request.Name
 	statement.Parameters["origin"] = request.Origin
+	for _, t := range request.Tags {
+		statement.Parameters[t.Key] = t.Value
+	}
 	r.Statements = append(r.Statements, statement)
 
 	tc.Request(statement)
@@ -78,7 +96,13 @@ func (tc *TransactionalClient) NewRepository(request NewRepositoryRequest) {
 
 func (tc *TransactionalClient) NewContributor(request NewContributorRequest) {
 	contributor := Statement{
-		Statement: fmt.Sprintf(`MERGE (n:Contributor {name: '%s', email: '%s'}) RETURN n`, request.Name, request.Email),
+		Statement:  makeStatement(`MERGE (n:Contributor {name: $name, email: $email%s }) RETURN n`, request.Tags),
+		Parameters: make(map[string]string),
+	}
+	contributor.Parameters["name"] = request.Name
+	contributor.Parameters["email"] = request.Email
+	for _, t := range request.Tags {
+		contributor.Parameters[t.Key] = t.Value
 	}
 
 	//	eachCommitQuery := `MATCH (a:Contributor),(b:Repository)

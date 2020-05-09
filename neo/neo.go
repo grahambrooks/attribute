@@ -3,6 +3,7 @@ package neo
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/grahambrooks/attribute/scan/tag"
 	"io"
 	"log"
 	"net/http"
@@ -99,12 +100,14 @@ func (c *NeoClient) Transaction(transaction func(client *TransactionalClient) er
 type NewRepositoryRequest struct {
 	Name   string `json:"name"`
 	Origin string `json:"origin"`
+	Tags   []tag.Tag
 }
 
 type NewContributorRequest struct {
 	Origin  string
 	Name    string
 	Email   string
+	Tags    []tag.Tag
 	When    time.Time
 	Message string
 }
