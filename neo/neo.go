@@ -98,18 +98,20 @@ func (c *NeoClient) Transaction(transaction func(client *TransactionalClient) er
 }
 
 type NewRepositoryRequest struct {
-	Name   string `json:"name"`
-	Origin string `json:"origin"`
-	Tags   []tag.Tag
+	Name        string `json:"name"`
+	Origin      string `json:"origin"`
+	Tags        []tag.Tag
+	CommitCount int
 }
 
 type NewContributorRequest struct {
-	Origin  string
-	Name    string
-	Email   string
-	Tags    []tag.Tag
-	When    time.Time
-	Message string
+	Origin      string
+	Name        string
+	Email       string
+	Tags        []tag.Tag
+	When        time.Time
+	Message     string
+	CommitCount int
 }
 
 func (c *NeoClient) decode(readCloser io.ReadCloser, transaction *TransactionResponse) error {

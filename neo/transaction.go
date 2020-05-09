@@ -6,6 +6,7 @@ import (
 	"github.com/grahambrooks/attribute/scan/tag"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -46,7 +47,7 @@ func (tc *TransactionalClient) CommitTransaction() error {
 			decoder := json.NewDecoder(response.Body)
 
 			var neo NeoResultResponse
-			decoder.Decode(&neo)
+			_ = decoder.Decode(&neo)
 
 			log.Printf("Decoded response %#v %d", neo, response.StatusCode)
 			if len(neo.Results) > 0 {
@@ -81,11 +82,12 @@ func (tc *TransactionalClient) NewRepository(request NewRepositoryRequest) {
 	r := TransactionRequest{}
 
 	statement := Statement{
-		Statement:  makeStatement(`MERGE (n:Repository { name: $name, origin: $origin%s }) RETURN n`, request.Tags),
+		Statement:  makeStatement(`MERGE (n:Repository { name: $name, origin: $origin, commits: $commits%s }) RETURN n`, request.Tags),
 		Parameters: make(map[string]string),
 	}
 	statement.Parameters["name"] = request.Name
 	statement.Parameters["origin"] = request.Origin
+	statement.Parameters["commits"] = strconv.Itoa(request.CommitCount)
 	for _, t := range request.Tags {
 		statement.Parameters[t.Key] = t.Value
 	}
@@ -96,11 +98,12 @@ func (tc *TransactionalClient) NewRepository(request NewRepositoryRequest) {
 
 func (tc *TransactionalClient) NewContributor(request NewContributorRequest) {
 	contributor := Statement{
-		Statement:  makeStatement(`MERGE (n:Contributor {name: $name, email: $email%s }) RETURN n`, request.Tags),
+		Statement:  makeStatement(`MERGE (n:Contributor {name: $name, email: $email, commits: $commits%s }) RETURN n`, request.Tags),
 		Parameters: make(map[string]string),
 	}
 	contributor.Parameters["name"] = request.Name
 	contributor.Parameters["email"] = request.Email
+	contributor.Parameters["commits"] = strconv.Itoa(request.CommitCount)
 	for _, t := range request.Tags {
 		contributor.Parameters[t.Key] = t.Value
 	}

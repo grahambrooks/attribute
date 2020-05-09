@@ -33,11 +33,11 @@ func (processor *NeoProcessor) process(repositoryPath string) error {
 	return processor.neoClient.Transaction(func(client *neo.TransactionalClient) error {
 		log.Printf("Scanning %s", repositoryPath)
 
-		client.NewRepository(neo.NewRepositoryRequest{
+		repositoryRequest := neo.NewRepositoryRequest{
 			Name:   filepath.Base(repositoryPath),
 			Origin: remote.Config().URLs[0],
 			Tags:   processor.Tags.Repository,
-		})
+		}
 
 		ref, err := r.Head()
 		if err != nil {
@@ -51,25 +51,39 @@ func (processor *NeoProcessor) process(repositoryPath string) error {
 			return err
 		}
 
-		seen := make(map[string]bool)
+		contributorRequests := make(map[string]*neo.NewContributorRequest, 0)
+
 		err = cIter.ForEach(func(c *object.Commit) error {
-			_, exists := seen[c.Author.Email]
-			if !exists {
-				if c.Author.When.After(threeMonthsAgo) {
-					request := neo.NewContributorRequest{
-						Origin:  filepath.Base(repositoryPath),
-						Name:    c.Author.Name,
-						Email:   c.Author.Email,
-						Tags:    processor.Tags.Contributor,
-						When:    c.Author.When,
-						Message: c.Message,
+			if c.Author.When.After(threeMonthsAgo) {
+				repositoryRequest.CommitCount++
+				r, exists := contributorRequests[contributorKey(c)]
+				if exists {
+					r.CommitCount++
+				} else {
+					contributorRequests[c.Author.Email] = &neo.NewContributorRequest{
+						Origin:      filepath.Base(repositoryPath),
+						Name:        c.Author.Name,
+						Email:       c.Author.Email,
+						CommitCount: 1,
+						Tags:        processor.Tags.Contributor,
+						When:        c.Author.When,
+						Message:     c.Message,
 					}
-					client.NewContributor(request)
-					seen[c.Author.Email] = true
 				}
 			}
 			return nil
 		})
+
+		client.NewRepository(repositoryRequest)
+
+		for _, request := range contributorRequests {
+			client.NewContributor(*request)
+		}
+
 		return nil
 	})
+}
+
+func contributorKey(c *object.Commit) string {
+	return c.Author.Email
 }
