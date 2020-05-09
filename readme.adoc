@@ -16,8 +16,10 @@ Next create a user for attribute to use. These settings can be overridden on the
 [source, cypher]
 ....
 CREATE USER attribute
-SET PASSWORD 'attribute'
+SET PASSWORD 'attribute' CHANGE NOT REQUIRED
 ....
+
+Without the 'CHANGE NOT REQUIRED' settings API access fails until the password is changed.
 
 === Building Attribute using Bazel
 
