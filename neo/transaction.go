@@ -100,7 +100,7 @@ func (tc *TransactionalClient) NewContributor(request NewContributorRequest) {
 	contributor := Statement{
 		Statement:  makeStatement(`MERGE (n:Contributor {name: $name, email: $email%s })
 ON CREATE SET n.commits = $commits
-ON MATCH SET n.commits = $commits
+ON MATCH SET n.commits = n.commits + $commits
 RETURN n`, request.Tags),
 		Parameters: make(map[string]string),
 	}
