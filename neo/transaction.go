@@ -98,7 +98,10 @@ func (tc *TransactionalClient) NewRepository(request NewRepositoryRequest) {
 
 func (tc *TransactionalClient) NewContributor(request NewContributorRequest) {
 	contributor := Statement{
-		Statement:  makeStatement(`MERGE (n:Contributor {name: $name, email: $email, commits: $commits%s }) RETURN n`, request.Tags),
+		Statement:  makeStatement(`MERGE (n:Contributor {name: $name, email: $email%s })
+ON CREATE SET n.commits = $commits
+ON MATCH SET n.commits = $commits
+RETURN n`, request.Tags),
 		Parameters: make(map[string]string),
 	}
 	contributor.Parameters["name"] = request.Name
@@ -108,10 +111,6 @@ func (tc *TransactionalClient) NewContributor(request NewContributorRequest) {
 		contributor.Parameters[t.Key] = t.Value
 	}
 
-	//	eachCommitQuery := `MATCH (a:Contributor),(b:Repository)
-	//WHERE a.email = $email AND b.name = $name
-	//CREATE (a)-[r:Contributes { name: a.name + '<->' + b.name, when: $when, message: $message }]->(b)
-	//RETURN type(r), r.name`
 	simpleContributorQuery := `MATCH (a:Contributor),(b:Repository)
 WHERE a.email = $email AND b.name = $name
 MERGE (a)-[r:Contributes { name: a.name + '<->' + b.name }]->(b)
