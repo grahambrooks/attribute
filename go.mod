@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/spf13/cobra v1.10.2
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.11.1
 	gopkg.in/src-d/go-git.v4 v4.13.1
 )
 
@@ -30,5 +30,5 @@ require (
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/src-d/go-billy.v4 v4.3.2 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
