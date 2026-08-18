@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/spf13/cobra v1.10.2
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	gopkg.in/src-d/go-git.v4 v4.13.1
 )
 
